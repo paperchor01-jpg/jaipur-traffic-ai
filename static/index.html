@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Nexus AI | Emergency Testing</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #010409; color: #f8fafc; font-family: 'Segoe UI', sans-serif; }
+        #dashboard { position: absolute; top: 20px; left: 20px; width: 340px; background: rgba(10, 15, 30, 0.85); backdrop-filter: blur(15px); padding: 25px; border: 1px solid #38bdf8; border-radius: 12px; z-index: 10; box-shadow: 0 15px 35px rgba(0,0,0,0.8); }
+        h2 { margin: 0 0 5px 0; color: #38bdf8; text-transform: uppercase; font-size: 1.3rem; letter-spacing: 1px; }
+        .alert { color: #94a3b8; font-weight: bold; margin-bottom: 15px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid #334155; padding-bottom: 10px;}
+        .metric { display: flex; justify-content: space-between; margin-top: 12px; font-family: monospace; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px; }
+        .val { color: #4ade80; font-weight: bold; }
+        .btn { width: 100%; padding: 14px; margin-top: 20px; background: linear-gradient(90deg, #0ea5e9, #2563eb); color: #fff; font-weight: bold; cursor: pointer; border:none; border-radius: 8px; text-transform: uppercase; transition: 0.3s; }
+        .btn:hover { box-shadow: 0 0 15px rgba(56, 189, 248, 0.5); }
+        .btn-amb { background: linear-gradient(90deg, #ef4444, #b91c1c); display: none; margin-top:10px; }
+        .btn-acc { background: linear-gradient(90deg, #f59e0b, #d97706); display: none; margin-top:10px; }
+        .light-status { display: flex; justify-content: space-between; margin-top: 15px; font-weight: bold; }
+        .dot { height: 12px; width: 12px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px; box-shadow: 0 0 8px #ef4444;}
+    </style>
+</head>
+<body>
+    <div id="dashboard">
+        <h2>JLN Marg Simulator</h2>
+        <div id="status" class="alert">System: OFFLINE</div>
+        
+        <div class="metric">Corridor AI: <span id="wave-text" class="val" style="color:#facc15">ANALYZING</span></div>
+        <div class="metric">Flow Efficiency: <span id="eff-text" class="val">0%</span></div>
+        
+        <div style="margin-top: 20px; font-size: 0.85rem; color:#94a3b8;">INTERSECTION STATUS</div>
+        <div class="light-status">
+            <span><span class="dot" id="l1"></span>Jct 1</span>
+            <span><span class="dot" id="l2"></span>Jct 2</span>
+            <span><span class="dot" id="l3"></span>Jct 3</span>
+        </div>
+        
+        <button id="start-btn" class="btn">Initiate Corridor Sync</button>
+        <button id="btn-amb" class="btn btn-amb">🚨 Dispatch Ambulance</button>
+        <button id="btn-acc" class="btn btn-acc">💥 Simulate Accident</button>
+    </div>
+
+    <script>
+        // --- 1. SETUP 3D WORLD ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x010409, 0.002); 
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 1, 3000);
+        camera.position.set(0, 200, 350); camera.lookAt(0, 0, 0);
+        const renderer = new THREE.WebGLRenderer({antialias: false}); 
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+
+        // --- 2. BUILD THE CORRIDOR ---
+        const roadMat = new THREE.MeshBasicMaterial({color: 0x111111});
+        const mainRoad = new THREE.Mesh(new THREE.PlaneGeometry(800, 40), roadMat);
+        mainRoad.rotation.x = -Math.PI/2; scene.add(mainRoad);
+
+        const xPositions = [-200, 0, 200]; 
+        xPositions.forEach(x => {
+            const crossRoad = new THREE.Mesh(new THREE.PlaneGeometry(30, 400), roadMat);
+            crossRoad.rotation.x = -Math.PI/2; crossRoad.position.x = x; scene.add(crossRoad);
+            const jct = new THREE.Mesh(new THREE.PlaneGeometry(30, 40), new THREE.MeshBasicMaterial({color: 0x222222}));
+            jct.rotation.x = -Math.PI/2; jct.position.set(x, 0.1, 0); scene.add(jct);
+        });
+
+        // --- 3. VEHICLE & EVENT LOGIC ---
+        let cars = [];
+        let lightStates = [0, 0, 0]; 
+        let ws;
+        let isAccident = false;
+        let wreckageMesh = null;
+
+        function spawnMainCar() {
+            const car = new THREE.Mesh(new THREE.BoxGeometry(10, 4, 5), new THREE.MeshBasicMaterial({color: 0x0ea5e9}));
+            car.position.set(-400, 2, 8); car.userData = { road: 'main', speed: 1.8, type: 'car' };
+            scene.add(car); cars.push(car);
+        }
+
+        function spawnCrossCar(jctIndex) {
+            const car = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 10), new THREE.MeshBasicMaterial({color: 0x94a3b8}));
+            car.position.set(xPositions[jctIndex] - 8, 2, -200); car.userData = { road: 'cross', jct: jctIndex, speed: 1.5, type:'car' };
+            scene.add(car); cars.push(car);
+        }
+
+        function spawnAmbulance() {
+            ws.send(JSON.stringify({event: "ambulance"}));
+            const amb = new THREE.Mesh(new THREE.BoxGeometry(12, 5, 6), new THREE.MeshBasicMaterial({color: 0xffffff}));
+            amb.position.set(-450, 2.5, 8);
+            amb.userData = { road: 'main', speed: 4.5, type: 'ambulance' }; // Fast!
+            
+            // Sirens
+            amb.userData.redL = new THREE.PointLight(0xff0000, 5, 100); amb.userData.redL.position.set(-4, 4, 0); amb.add(amb.userData.redL);
+            amb.userData.blueL = new THREE.PointLight(0x0000ff, 5, 100); amb.userData.blueL.position.set(4, 4, 0); amb.add(amb.userData.blueL);
+            
+            scene.add(amb); cars.push(amb);
+        }
+
+        function spawnAccident() {
+            if(isAccident) return;
+            isAccident = true;
+            ws.send(JSON.stringify({event: "accident"}));
+            
+            wreckageMesh = new THREE.Mesh(new THREE.BoxGeometry(15, 6, 12), new THREE.MeshBasicMaterial({color: 0xf97316}));
+            wreckageMesh.position.set(0, 3, 5); // Drops exactly at Jct 2
+            scene.add(wreckageMesh);
+            
+            // Clear accident after 15 seconds
+            setTimeout(() => { scene.remove(wreckageMesh); isAccident = false; }, 15000);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            let time = Date.now() * 0.01;
+            
+            cars.forEach(c => {
+                // Flash ambulance lights
+                if(c.userData.type === 'ambulance') {
+                    c.userData.redL.intensity = Math.sin(time) > 0 ? 5 : 0;
+                    c.userData.blueL.intensity = Math.sin(time) < 0 ? 5 : 0;
+                }
+
+                let move = true;
+                if (c.userData.road === 'main') {
+                    if(c.userData.type === 'ambulance') { move = true; } // Ambulances ignore physics
+                    else {
+                        // Stop if there is an accident in front of them
+                        if(isAccident && c.position.x < -10 && c.position.x > -50) move = false;
+                        
+                        // Stop for Red Lights
+                        if(move) {
+                            for(let i=0; i<3; i++) {
+                                let stopLine = xPositions[i] - 25;
+                                if (c.position.x < stopLine && c.position.x > stopLine - 15 && lightStates[i] !== 0) move = false; 
+                            }
+                        }
+                    }
+                    if(move) c.position.x += c.userData.speed;
+                } 
+                else if (c.userData.road === 'cross') {
+                    let stopLine = -25;
+                    if (c.position.z < stopLine && c.position.z > stopLine - 15 && lightStates[c.userData.jct] !== 1) move = false;
+                    if(move) c.position.z += c.userData.speed;
+                }
+            });
+
+            cars = cars.filter(c => { if(c.position.x > 400 || c.position.z > 200) { scene.remove(c); return false; } return true; });
+            renderer.render(scene, camera);
+        }
+        animate(); 
+
+        // --- 4. BUTTONS & SOCKETS ---
+        document.getElementById('start-btn').onclick = () => {
+            document.getElementById('status').innerText = "SYSTEM ACTIVE";
+            document.getElementById('status').style.color = "#4ade80";
+            document.getElementById('start-btn').style.display = "none";
+            document.getElementById('btn-amb').style.display = "block";
+            document.getElementById('btn-acc').style.display = "block";
+            
+            ws = new WebSocket("ws://127.0.0.1:8000/ws");
+            
+            setInterval(() => { if(Math.random() > 0.3) spawnMainCar(); }, 800);
+            setInterval(() => { if(Math.random() > 0.6) spawnCrossCar(Math.floor(Math.random()*3)); }, 1200);
+
+            ws.onmessage = (e) => {
+                const d = JSON.parse(e.data);
+                lightStates = d.lights; 
+                
+                document.getElementById('wave-text').innerText = d.wave_status;
+                if(d.wave_status.includes("AMBULANCE")) document.getElementById('wave-text').style.color = "#ef4444";
+                else if(d.wave_status.includes("COLLISION")) document.getElementById('wave-text').style.color = "#f97316";
+                else document.getElementById('wave-text').style.color = d.wave_status.includes("SYNCHRONIZED") ? "#4ade80" : "#facc15";
+                
+                document.getElementById('eff-text').innerText = d.efficiency + "%";
+                
+                for(let i=1; i<=3; i++) {
+                    let dot = document.getElementById('l'+i);
+                    dot.style.backgroundColor = (d.lights[i-1] === 0) ? "#4ade80" : "#ef4444";
+                    dot.style.boxShadow = (d.lights[i-1] === 0) ? "0 0 8px #4ade80" : "0 0 8px #ef4444";
+                }
+            };
+        };
+
+        document.getElementById('btn-amb').onclick = spawnAmbulance;
+        document.getElementById('btn-acc').onclick = spawnAccident;
+    </script>
+</body>
+</html>

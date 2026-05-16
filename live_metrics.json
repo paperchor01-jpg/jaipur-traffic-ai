@@ -1,0 +1,13 @@
+[
+  {"time_step": 0, "waiting_cars": 12, "ai_loss": 0.85, "active_phase": 0},
+  {"time_step": 10, "waiting_cars": 15, "ai_loss": 0.72, "active_phase": 0},
+  {"time_step": 20, "waiting_cars": 18, "ai_loss": 0.65, "active_phase": 0},
+  {"time_step": 30, "waiting_cars": 9, "ai_loss": 0.58, "active_phase": 2},
+  {"time_step": 40, "waiting_cars": 5, "ai_loss": 0.50, "active_phase": 2},
+  {"time_step": 50, "waiting_cars": 14, "ai_loss": 0.45, "active_phase": 0},
+  {"time_step": 60, "waiting_cars": 11, "ai_loss": 0.41, "active_phase": 0},
+  {"time_step": 70, "waiting_cars": 4, "ai_loss": 0.38, "active_phase": 2},
+  {"time_step": 80, "waiting_cars": 2, "ai_loss": 0.32, "active_phase": 2},
+  {"time_step": 90, "waiting_cars": 8, "ai_loss": 0.28, "active_phase": 0},
+  {"time_step": 100, "waiting_cars": 3, "ai_loss": 0.22, "active_phase": 2}
+]
