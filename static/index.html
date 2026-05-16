@@ -1,187 +1,368 @@
+<!-- 
+  Project: Nexus AI - Enterprise Digital Twin
+  Developer: Rupesh Yadav
+  Copyright (c) 2026 Lifeera.in. All Rights Reserved.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Nexus AI | Emergency Testing</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nexus AI | Digital Twin</title>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
-        body { margin: 0; overflow: hidden; background: #010409; color: #f8fafc; font-family: 'Segoe UI', sans-serif; }
-        #dashboard { position: absolute; top: 20px; left: 20px; width: 340px; background: rgba(10, 15, 30, 0.85); backdrop-filter: blur(15px); padding: 25px; border: 1px solid #38bdf8; border-radius: 12px; z-index: 10; box-shadow: 0 15px 35px rgba(0,0,0,0.8); }
-        h2 { margin: 0 0 5px 0; color: #38bdf8; text-transform: uppercase; font-size: 1.3rem; letter-spacing: 1px; }
-        .alert { color: #94a3b8; font-weight: bold; margin-bottom: 15px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid #334155; padding-bottom: 10px;}
-        .metric { display: flex; justify-content: space-between; margin-top: 12px; font-family: monospace; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px; }
+        body { margin: 0; overflow: hidden; background: #010409; color: #f8fafc; font-family: 'Segoe UI', sans-serif; touch-action: none; transition: background 1s ease; }
+        
+        #dashboard { 
+            position: absolute; top: 15px; left: 15px; width: 280px; 
+            background: rgba(10, 15, 30, 0.75); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            padding: 15px; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; z-index: 10; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @media (max-width: 768px) {
+            #dashboard { top: auto; bottom: 10px; left: 10px; right: 10px; width: auto; padding: 12px; border-radius: 15px; }
+            #dashboard.collapsed { max-height: 40px; overflow: hidden; background: rgba(10, 15, 30, 0.9); }
+            #dashboard.collapsed .hide-on-collapse { display: none; }
+            .mobile-toggle { display: block !important; float: right; font-size: 0.8rem; color: #38bdf8; border: 1px solid #38bdf8; padding: 2px 8px; border-radius: 4px; }
+        }
+
+        .mobile-toggle { display: none; }
+        h2 { margin: 0 0 8px 0; color: #38bdf8; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 1px; cursor: pointer; display: flex; justify-content: space-between;}
+        #theme-btn { background: transparent; border: 1px solid #64748b; color: #cbd5e1; border-radius: 4px; cursor: pointer; padding: 2px 6px; font-size: 0.7rem; }
+        #theme-btn:hover { background: rgba(255,255,255,0.1); }
+
+        .alert { color: #94a3b8; font-weight: bold; margin-bottom: 10px; font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;}
+        .metric { display: flex; justify-content: space-between; margin-top: 5px; font-family: monospace; font-size: 0.8rem; align-items: center;}
         .val { color: #4ade80; font-weight: bold; }
-        .btn { width: 100%; padding: 14px; margin-top: 20px; background: linear-gradient(90deg, #0ea5e9, #2563eb); color: #fff; font-weight: bold; cursor: pointer; border:none; border-radius: 8px; text-transform: uppercase; transition: 0.3s; }
-        .btn:hover { box-shadow: 0 0 15px rgba(56, 189, 248, 0.5); }
-        .btn-amb { background: linear-gradient(90deg, #ef4444, #b91c1c); display: none; margin-top:10px; }
-        .btn-acc { background: linear-gradient(90deg, #f59e0b, #d97706); display: none; margin-top:10px; }
-        .light-status { display: flex; justify-content: space-between; margin-top: 15px; font-weight: bold; }
-        .dot { height: 12px; width: 12px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px; box-shadow: 0 0 8px #ef4444;}
+        
+        select { background: #1e293b; color: #38bdf8; border: 1px solid #334155; border-radius: 4px; padding: 4px; font-size: 0.7rem; font-family: monospace; width: 140px; cursor: pointer;}
+        select:focus { outline: none; border-color: #38bdf8; }
+
+        .chart-container { margin-top: 10px; height: 70px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; margin: 8px 0; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%; background: #38bdf8; cursor: pointer; margin-top: -4px;}
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px; }
+        
+        .btn-container { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+        .btn { padding: 10px; background: linear-gradient(90deg, #0ea5e9, #2563eb); color: #fff; font-weight: bold; border:none; border-radius: 6px; text-transform: uppercase; font-size: 0.7rem; cursor: pointer; }
+        .btn-full { grid-column: span 2; }
+        .btn-amb { background: linear-gradient(90deg, #ef4444, #b91c1c); }
+        .btn-acc { background: linear-gradient(90deg, #f59e0b, #d97706); }
+        .btn-stop { background: #334155; }
+        
+        .light-status { display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.75rem;}
+        .dot { height: 8px; width: 8px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-right: 4px; box-shadow: 0 0 5px #ef4444;}
+        .cam-controls { display: flex; justify-content: space-between; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
+        .cam-btn { background: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 4px 8px; font-size: 0.65rem; border-radius: 4px; cursor: pointer; text-transform: uppercase; flex: 1; margin: 0 2px;}
+        .cam-btn.active { background: #0ea5e9; color: white; border-color: #38bdf8; }
     </style>
 </head>
 <body>
-    <div id="dashboard">
-        <h2>JLN Marg Simulator</h2>
-        <div id="status" class="alert">System: OFFLINE</div>
+    <div id="dashboard" class="collapsed">
+        <div class="mobile-toggle" onclick="toggleUI()">MENU</div>
+        <h2>
+            <span onclick="toggleUI()">JLN Digital Twin</span>
+            <button id="theme-btn" onclick="toggleTheme()">🌙 Night</button>
+        </h2>
         
-        <div class="metric">Corridor AI: <span id="wave-text" class="val" style="color:#facc15">ANALYZING</span></div>
-        <div class="metric">Flow Efficiency: <span id="eff-text" class="val">0%</span></div>
-        
-        <div style="margin-top: 20px; font-size: 0.85rem; color:#94a3b8;">INTERSECTION STATUS</div>
-        <div class="light-status">
-            <span><span class="dot" id="l1"></span>Jct 1</span>
-            <span><span class="dot" id="l2"></span>Jct 2</span>
-            <span><span class="dot" id="l3"></span>Jct 3</span>
+        <div class="hide-on-collapse">
+            <div id="status" class="alert">System: OFFLINE</div>
+            
+            <div class="metric">System State: <span id="wave-text" class="val" style="color:#facc15">STANDBY</span></div>
+            <div class="metric">AI Efficiency: <span id="eff-text" class="val">0%</span></div>
+            <div class="metric" style="color: #94a3b8;">Static (30s): <span id="static-eff-text" style="color:#cbd5e1; font-weight:bold;">0%</span></div>
+            
+            <div class="metric" style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+                Data Source:
+                <select id="scenario-selector" onchange="loadScenario(this.value)">
+                    <option value="live">Live Random</option>
+                    <option value="jln_rush_hour">Friday 5PM Peak</option>
+                    <option value="jln_accident_data">Historical Crash</option>
+                </select>
+            </div>
+
+            <div class="metric" style="margin-top: 5px;">
+                Traffic Density: <span id="density-val" style="color: #38bdf8;">1.0x</span>
+            </div>
+            <input type="range" id="density-slider" min="0.3" max="2.5" step="0.1" value="1.0" oninput="updateDensity(this.value)">
+
+            <div class="chart-container" id="graph-box" style="display: none;">
+                <canvas id="impactChart"></canvas>
+            </div>
+
+            <div class="cam-controls">
+                <button class="cam-btn active" onclick="setCamera('city', this)">City</button>
+                <button class="cam-btn" onclick="setCamera('map', this)">Map</button>
+                <button class="cam-btn" onclick="setCamera('street', this)">Street</button>
+            </div>
+
+            <div class="light-status">
+                <span><span class="dot" id="l1"></span>J1</span>
+                <span><span class="dot" id="l2"></span>J2</span>
+                <span><span class="dot" id="l3"></span>J3</span>
+            </div>
+            
+            <div class="btn-container">
+                <button id="start-btn" class="btn btn-full" onclick="startSim()">Start AI Sync</button>
+                <button id="btn-amb" class="btn btn-amb" style="display:none" onclick="triggerAmb()">Amb</button>
+                <button id="btn-acc" class="btn btn-acc" style="display:none" onclick="triggerAcc()">Accident</button>
+                <button id="stop-btn" class="btn btn-stop" style="display:none" onclick="stopSystem()">Stop</button>
+            </div>
         </div>
-        
-        <button id="start-btn" class="btn">Initiate Corridor Sync</button>
-        <button id="btn-amb" class="btn btn-amb">🚨 Dispatch Ambulance</button>
-        <button id="btn-acc" class="btn btn-acc">💥 Simulate Accident</button>
     </div>
 
     <script>
-        // --- 1. SETUP 3D WORLD ---
-        const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x010409, 0.002); 
-        const camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 1, 3000);
-        camera.position.set(0, 200, 350); camera.lookAt(0, 0, 0);
-        const renderer = new THREE.WebGLRenderer({antialias: false}); 
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        function toggleUI() { if (window.innerWidth < 768) document.getElementById('dashboard').classList.toggle('collapsed'); }
 
-        // --- 2. BUILD THE CORRIDOR ---
-        const roadMat = new THREE.MeshBasicMaterial({color: 0x111111});
-        const mainRoad = new THREE.Mesh(new THREE.PlaneGeometry(800, 40), roadMat);
-        mainRoad.rotation.x = -Math.PI/2; scene.add(mainRoad);
-
-        const xPositions = [-200, 0, 200]; 
-        xPositions.forEach(x => {
-            const crossRoad = new THREE.Mesh(new THREE.PlaneGeometry(30, 400), roadMat);
-            crossRoad.rotation.x = -Math.PI/2; crossRoad.position.x = x; scene.add(crossRoad);
-            const jct = new THREE.Mesh(new THREE.PlaneGeometry(30, 40), new THREE.MeshBasicMaterial({color: 0x222222}));
-            jct.rotation.x = -Math.PI/2; jct.position.set(x, 0.1, 0); scene.add(jct);
+        const ctx = document.getElementById('impactChart').getContext('2d');
+        const impactChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: Array(20).fill(''), datasets: [
+                { label: 'AI Model', data: Array(20).fill(0), borderColor: '#4ade80', borderWidth: 2, fill: false, pointRadius: 0, tension: 0.4 },
+                { label: 'Static 30s', data: Array(20).fill(0), borderColor: '#64748b', borderDash: [5, 5], borderWidth: 1.5, fill: false, pointRadius: 0, tension: 0.2 }
+            ]},
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { display: false, min: 0, max: 100 } }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
         });
 
-        // --- 3. VEHICLE & EVENT LOGIC ---
-        let cars = [];
-        let lightStates = [0, 0, 0]; 
-        let ws;
-        let isAccident = false;
-        let wreckageMesh = null;
+        const scene = new THREE.Scene(); scene.background = new THREE.Color(0x87CEEB); 
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 1, 2000);
+        let targetCamPos = new THREE.Vector3(0, 200, 250); let targetLookAt = new THREE.Vector3(0, 0, 0); camera.position.copy(targetCamPos);
+        const renderer = new THREE.WebGLRenderer({antialias: true, alpha: false}); renderer.setSize(window.innerWidth, window.innerHeight); renderer.setPixelRatio(window.devicePixelRatio); document.body.appendChild(renderer.domElement);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.maxPolarAngle = Math.PI / 2.1;
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); scene.add(ambientLight);
+        const sun = new THREE.DirectionalLight(0xfff5b6, 0.8); sun.position.set(50, 200, 100); scene.add(sun);
+
+        const roadMat = new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.9}); const lineMat = new THREE.MeshBasicMaterial({color: 0xffffff}); const yellowMat = new THREE.MeshBasicMaterial({color: 0xfacc15}); const grassMat = new THREE.MeshStandardMaterial({color: 0x064e3b, roughness: 1}); 
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), grassMat); ground.rotation.x = -Math.PI/2; ground.position.y = -0.5; scene.add(ground);
+        const mainRoad = new THREE.Mesh(new THREE.PlaneGeometry(400, 40), roadMat); mainRoad.rotation.x = -Math.PI/2; scene.add(mainRoad);
+        const mainDivider = new THREE.Mesh(new THREE.PlaneGeometry(400, 0.5), yellowMat); mainDivider.rotation.x = -Math.PI/2; mainDivider.position.y = 0.1; scene.add(mainDivider);
+
+        for(let i=-200; i<200; i+=12) {
+            const dash1 = new THREE.Mesh(new THREE.PlaneGeometry(6, 0.3), lineMat); dash1.rotation.x = -Math.PI/2; dash1.position.set(i, 0.1, 10); scene.add(dash1);
+            const dash2 = new THREE.Mesh(new THREE.PlaneGeometry(6, 0.3), lineMat); dash2.rotation.x = -Math.PI/2; dash2.position.set(i, 0.1, -10); scene.add(dash2);
+        }
+
+        const xPositions = [-100, 0, 100]; 
+        xPositions.forEach(x => {
+            const crossRoad = new THREE.Mesh(new THREE.PlaneGeometry(30, 200), roadMat); crossRoad.rotation.x = -Math.PI/2; crossRoad.position.x = x; scene.add(crossRoad);
+            const crossDivider = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 200), yellowMat); crossDivider.rotation.x = -Math.PI/2; crossDivider.position.set(x, 0.1, 0); scene.add(crossDivider);
+            for(let z=-15; z<=15; z+=3.5) {
+                const z1 = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), lineMat); z1.rotation.x = -Math.PI/2; z1.position.set(x - 18, 0.1, z); scene.add(z1);
+                const z2 = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), lineMat); z2.rotation.x = -Math.PI/2; z2.position.set(x + 18, 0.1, z); scene.add(z2);
+            }
+        });
+
+        const mainLightMaterials = []; const crossLightMaterials = [];
+        function createTrafficLightPole(x, z, rotationY) {
+            const group = new THREE.Group();
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 25), new THREE.MeshStandardMaterial({color: 0x111111, metalness: 0.8})); pole.position.y = 12.5; group.add(pole);
+            const box = new THREE.Mesh(new THREE.BoxGeometry(3, 8, 3), new THREE.MeshStandardMaterial({color: 0x050505})); box.position.set(0, 24, 1.5); group.add(box);
+            const redMat = new THREE.MeshBasicMaterial({color: 0x220000}); const greenMat = new THREE.MeshBasicMaterial({color: 0x002200}); 
+            const redBulb = new THREE.Mesh(new THREE.SphereGeometry(1.2), redMat); redBulb.position.set(0, 26, 3); group.add(redBulb);
+            const greenBulb = new THREE.Mesh(new THREE.SphereGeometry(1.2), greenMat); greenBulb.position.set(0, 22, 3); group.add(greenBulb);
+            group.position.set(x, 0, z); group.rotation.y = rotationY; scene.add(group); return { red: redMat, green: greenMat };
+        }
+        xPositions.forEach(x => { mainLightMaterials.push(createTrafficLightPole(x - 25, 22, -Math.PI/2)); crossLightMaterials.push(createTrafficLightPole(x - 18, -25, Math.PI)); });
+
+        let cars = [], lightStates = [0, 0, 0], ws, isAccident = false, wreckage;
+        let currentDensity = 1.0; 
+
+        function createCar(colorHex, isAmbulance = false) {
+            const group = new THREE.Group();
+            const chassis = new THREE.Mesh(new THREE.BoxGeometry(10, 3, 5), new THREE.MeshStandardMaterial({color: colorHex, roughness: 0.3})); chassis.position.y = 2.5; group.add(chassis);
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(5, 2.5, 4.5), new THREE.MeshStandardMaterial({color: 0x111111})); cabin.position.set(-1, 5, 0); group.add(cabin);
+            const wheelMat = new THREE.MeshStandardMaterial({color: 0x050505, roughness: 0.9}); const wGeo = new THREE.CylinderGeometry(1.2, 1.2, 1, 16); wGeo.rotateX(Math.PI / 2);
+            [[-3, 1.2, 2.5], [3, 1.2, 2.5], [-3, 1.2, -2.5], [3, 1.2, -2.5]].forEach(p => { const w = new THREE.Mesh(wGeo, wheelMat); w.position.set(...p); group.add(w); });
+            if(!isAmbulance) {
+                const hlMat = new THREE.MeshBasicMaterial({color: 0xffffff});
+                const hl1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 1), hlMat); hl1.position.set(5.1, 2.5, 1.8);
+                const hl2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 1), hlMat); hl2.position.set(5.1, 2.5, -1.8);
+                group.add(hl1); group.add(hl2);
+            }
+            return group;
+        }
 
         function spawnMainCar() {
-            const car = new THREE.Mesh(new THREE.BoxGeometry(10, 4, 5), new THREE.MeshBasicMaterial({color: 0x0ea5e9}));
-            car.position.set(-400, 2, 8); car.userData = { road: 'main', speed: 1.8, type: 'car' };
+            const color = [0x0ea5e9, 0xcbd5e1, 0xef4444, 0x334155][Math.floor(Math.random() * 4)];
+            const car = createCar(color); car.position.set(-200, 0, 8); 
+            let randSpeed = 1.2 * (0.8 + Math.random() * 0.4); 
+            car.userData = { road: 'main', speed: randSpeed, type: 'car' };
             scene.add(car); cars.push(car);
         }
 
         function spawnCrossCar(jctIndex) {
-            const car = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 10), new THREE.MeshBasicMaterial({color: 0x94a3b8}));
-            car.position.set(xPositions[jctIndex] - 8, 2, -200); car.userData = { road: 'cross', jct: jctIndex, speed: 1.5, type:'car' };
+            const car = createCar(0x94a3b8); car.position.set(xPositions[jctIndex] - 8, 0, -100); car.rotation.y = -Math.PI / 2; 
+            let randSpeed = 0.9 * (0.8 + Math.random() * 0.4);
+            car.userData = { road: 'cross', jct: jctIndex, speed: randSpeed, type:'car' };
             scene.add(car); cars.push(car);
         }
 
         function spawnAmbulance() {
-            ws.send(JSON.stringify({event: "ambulance"}));
-            const amb = new THREE.Mesh(new THREE.BoxGeometry(12, 5, 6), new THREE.MeshBasicMaterial({color: 0xffffff}));
-            amb.position.set(-450, 2.5, 8);
-            amb.userData = { road: 'main', speed: 4.5, type: 'ambulance' }; // Fast!
-            
-            // Sirens
-            amb.userData.redL = new THREE.PointLight(0xff0000, 5, 100); amb.userData.redL.position.set(-4, 4, 0); amb.add(amb.userData.redL);
-            amb.userData.blueL = new THREE.PointLight(0x0000ff, 5, 100); amb.userData.blueL.position.set(4, 4, 0); amb.add(amb.userData.blueL);
-            
+            if(ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({event: "ambulance"}));
+            const amb = createCar(0xffffff, true); amb.position.set(-220, 0, 8); amb.userData = { road: 'main', speed: 2.5, type: 'ambulance' }; 
+            const lb = new THREE.Mesh(new THREE.BoxGeometry(1, 0.5, 3), new THREE.MeshBasicMaterial({color: 0x444444})); lb.position.set(-1, 6.5, 0); amb.add(lb);
+            amb.userData.redL = new THREE.PointLight(0xff0000, 8, 150); amb.userData.redL.position.set(-1, 8, 2); amb.add(amb.userData.redL);
+            amb.userData.blueL = new THREE.PointLight(0x0000ff, 8, 150); amb.userData.blueL.position.set(-1, 8, -2); amb.add(amb.userData.blueL);
             scene.add(amb); cars.push(amb);
-        }
-
-        function spawnAccident() {
-            if(isAccident) return;
-            isAccident = true;
-            ws.send(JSON.stringify({event: "accident"}));
-            
-            wreckageMesh = new THREE.Mesh(new THREE.BoxGeometry(15, 6, 12), new THREE.MeshBasicMaterial({color: 0xf97316}));
-            wreckageMesh.position.set(0, 3, 5); // Drops exactly at Jct 2
-            scene.add(wreckageMesh);
-            
-            // Clear accident after 15 seconds
-            setTimeout(() => { scene.remove(wreckageMesh); isAccident = false; }, 15000);
         }
 
         function animate() {
             requestAnimationFrame(animate);
             let time = Date.now() * 0.01;
-            
-            cars.forEach(c => {
-                // Flash ambulance lights
-                if(c.userData.type === 'ambulance') {
-                    c.userData.redL.intensity = Math.sin(time) > 0 ? 5 : 0;
-                    c.userData.blueL.intensity = Math.sin(time) < 0 ? 5 : 0;
-                }
+            camera.position.lerp(targetCamPos, 0.03); controls.target.lerp(targetLookAt, 0.03); controls.update();
 
+            cars.forEach(c => {
+                if(c.userData.type === 'ambulance') {
+                    if(c.userData.redL) c.userData.redL.intensity = Math.sin(time * 1.5) > 0 ? 8 : 0;
+                    if(c.userData.blueL) c.userData.blueL.intensity = Math.sin(time * 1.5) < 0 ? 8 : 0;
+                }
                 let move = true;
-                if (c.userData.road === 'main') {
-                    if(c.userData.type === 'ambulance') { move = true; } // Ambulances ignore physics
+                if(c.userData.road === 'main') {
+                    if(c.userData.type === 'ambulance') move = true; 
                     else {
-                        // Stop if there is an accident in front of them
-                        if(isAccident && c.position.x < -10 && c.position.x > -50) move = false;
-                        
-                        // Stop for Red Lights
-                        if(move) {
-                            for(let i=0; i<3; i++) {
-                                let stopLine = xPositions[i] - 25;
-                                if (c.position.x < stopLine && c.position.x > stopLine - 15 && lightStates[i] !== 0) move = false; 
-                            }
-                        }
+                        if(isAccident && c.position.x > -60 && c.position.x < -10) move = false;
+                        if(move) xPositions.forEach((x, i) => { if(c.position.x > x-35 && c.position.x < x-25 && lightStates[i] !== 0) move = false; });
                     }
                     if(move) c.position.x += c.userData.speed;
-                } 
-                else if (c.userData.road === 'cross') {
-                    let stopLine = -25;
-                    if (c.position.z < stopLine && c.position.z > stopLine - 15 && lightStates[c.userData.jct] !== 1) move = false;
+                } else {
+                    if (isAccident && c.userData.jct === 1 && c.position.z < 0 && c.position.z > -20) move = false;
+                    if(c.position.z > -35 && c.position.z < -25 && lightStates[c.userData.jct] !== 1) move = false;
                     if(move) c.position.z += c.userData.speed;
                 }
             });
-
-            cars = cars.filter(c => { if(c.position.x > 400 || c.position.z > 200) { scene.remove(c); return false; } return true; });
+            cars = cars.filter(c => { if(Math.abs(c.position.x) > 300 || c.position.z > 150) { scene.remove(c); return false; } return true; });
             renderer.render(scene, camera);
         }
-        animate(); 
+        animate();
 
-        // --- 4. BUTTONS & SOCKETS ---
-        document.getElementById('start-btn').onclick = () => {
-            document.getElementById('status').innerText = "SYSTEM ACTIVE";
-            document.getElementById('status').style.color = "#4ade80";
+        let isNight = false;
+        function toggleTheme() {
+            isNight = !isNight; document.getElementById('theme-btn').innerText = isNight ? "☀️ Day" : "🌙 Night";
+            if(isNight) { scene.background = new THREE.Color(0x010409); ambientLight.intensity = 0.1; sun.intensity = 0.1; grassMat.color.setHex(0x021a14); } 
+            else { scene.background = new THREE.Color(0x87CEEB); ambientLight.intensity = 0.7; sun.intensity = 0.8; grassMat.color.setHex(0x064e3b); }
+        }
+
+        function setCamera(view, btnElement) {
+            document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active')); btnElement.classList.add('active');
+            if(view === 'city') { targetCamPos.set(0, 200, 250); targetLookAt.set(0, 0, 0); } 
+            else if (view === 'map') { targetCamPos.set(0, 400, 0); targetLookAt.set(0, 0, 0); } 
+            else if (view === 'street') { targetCamPos.set(-280, 20, 0); targetLookAt.set(300, 20, 0); }
+        }
+
+        function updateDensity(val) {
+            currentDensity = parseFloat(val);
+            document.getElementById('density-val').innerText = currentDensity.toFixed(1) + "x";
+            if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({event: "density", value: currentDensity}));
+            adjustSpawners();
+        }
+
+        function loadScenario(val) {
+            if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({event: "scenario", value: val}));
+            if (val === 'jln_accident_data' && !isAccident) triggerAcc();
+            if (val === 'jln_rush_hour') { document.getElementById('density-slider').value = 1.8; updateDensity(1.8); } 
+            else if (val === 'live') { document.getElementById('density-slider').value = 1.0; updateDensity(1.0); }
+        }
+
+        function adjustSpawners() {
+            if (document.getElementById('status').innerText === "LIVE" || document.getElementById('status').innerText === "RECONNECTING...") {
+                clearInterval(window.spawnMainInterval); clearInterval(window.spawnCrossInterval);
+                window.spawnMainInterval = setInterval(() => { if(Math.random() > 0.3) spawnMainCar(); }, 600 / currentDensity);
+                window.spawnCrossInterval = setInterval(() => { if(Math.random() > 0.6) spawnCrossCar(Math.floor(Math.random()*3)); }, 800 / currentDensity);
+            }
+        }
+
+        function startSim() {
+            document.getElementById('status').innerText = "LIVE"; document.getElementById('status').style.color = "#4ade80";
+            document.getElementById('graph-box').style.display = "block";
+            document.querySelectorAll('#btn-amb, #btn-acc, #stop-btn').forEach(b => b.style.display = "block");
             document.getElementById('start-btn').style.display = "none";
-            document.getElementById('btn-amb').style.display = "block";
-            document.getElementById('btn-acc').style.display = "block";
-            
-            ws = new WebSocket("ws://127.0.0.1:8000/ws");
-            
-            setInterval(() => { if(Math.random() > 0.3) spawnMainCar(); }, 800);
-            setInterval(() => { if(Math.random() > 0.6) spawnCrossCar(Math.floor(Math.random()*3)); }, 1200);
+            adjustSpawners(); connectWebSocket();
+        }
+
+        function connectWebSocket() {
+            // Update this with your Render domain!
+            ws = new WebSocket("wss://jaipur-traffic-ai.onrender.com/ws");
 
             ws.onmessage = (e) => {
-                const d = JSON.parse(e.data);
-                lightStates = d.lights; 
+                if (document.getElementById('status').innerText === "RECONNECTING...") {
+                    document.getElementById('status').innerText = "LIVE"; document.getElementById('status').style.color = "#4ade80";
+                }
+                const d = JSON.parse(e.data); lightStates = d.lights;
                 
                 document.getElementById('wave-text').innerText = d.wave_status;
-                if(d.wave_status.includes("AMBULANCE")) document.getElementById('wave-text').style.color = "#ef4444";
-                else if(d.wave_status.includes("COLLISION")) document.getElementById('wave-text').style.color = "#f97316";
-                else document.getElementById('wave-text').style.color = d.wave_status.includes("SYNCHRONIZED") ? "#4ade80" : "#facc15";
-                
                 document.getElementById('eff-text').innerText = d.efficiency + "%";
+                document.getElementById('static-eff-text').innerText = d.static_efficiency + "%"; 
                 
-                for(let i=1; i<=3; i++) {
-                    let dot = document.getElementById('l'+i);
-                    dot.style.backgroundColor = (d.lights[i-1] === 0) ? "#4ade80" : "#ef4444";
-                    dot.style.boxShadow = (d.lights[i-1] === 0) ? "0 0 8px #4ade80" : "0 0 8px #ef4444";
+                if(d.wave_status.includes("🚨")) document.getElementById('wave-text').style.color = "#ef4444";
+                else if(d.wave_status.includes("💥")) document.getElementById('wave-text').style.color = "#f97316";
+                else if(d.wave_status.includes("🛡️")) document.getElementById('wave-text').style.color = "#94a3b8";
+                else document.getElementById('wave-text').style.color = "#4ade80";
+
+                impactChart.data.datasets[0].data.shift(); impactChart.data.datasets[0].data.push(d.efficiency);
+                impactChart.data.datasets[1].data.shift(); impactChart.data.datasets[1].data.push(d.static_efficiency); 
+                impactChart.update();
+                
+                for(let i = 0; i < 3; i++) {
+                    document.getElementById('l'+(i+1)).style.backgroundColor = d.lights[i] === 0 ? "#4ade80" : "#ef4444";
+                    if (d.lights[i] === 0) { 
+                        mainLightMaterials[i].red.color.setHex(0x220000); mainLightMaterials[i].green.color.setHex(0x00ff00);
+                        crossLightMaterials[i].red.color.setHex(0xff0000); crossLightMaterials[i].green.color.setHex(0x002200);
+                    } else { 
+                        mainLightMaterials[i].red.color.setHex(0xff0000); mainLightMaterials[i].green.color.setHex(0x002200);
+                        crossLightMaterials[i].red.color.setHex(0x220000); crossLightMaterials[i].green.color.setHex(0x00ff00);
+                    }
                 }
             };
-        };
 
-        document.getElementById('btn-amb').onclick = spawnAmbulance;
-        document.getElementById('btn-acc').onclick = spawnAccident;
+            ws.onclose = () => { 
+                if(document.getElementById('status').innerText === "LIVE" || document.getElementById('status').innerText === "RECONNECTING...") {
+                    document.getElementById('status').innerText = "RECONNECTING..."; document.getElementById('status').style.color = "#facc15";
+                    setTimeout(connectWebSocket, 2000);
+                } else { stopSystem(); }
+            };
+        }
+
+        function triggerAcc() {
+            isAccident = true; wreckage = new THREE.Group();
+            const car1 = createCar(0xf97316); car1.rotation.y = 0.5; car1.position.set(-2, 0, 2);
+            const car2 = createCar(0x334155); car2.rotation.y = -0.8; car2.position.set(2, 0, -2);
+            wreckage.add(car1); wreckage.add(car2); wreckage.position.set(-20, 0, 5); scene.add(wreckage);
+            ws.send(JSON.stringify({event: "accident"}));
+            setTimeout(() => { scene.remove(wreckage); isAccident = false; }, 10000);
+        }
+        
+        function triggerAmb() { spawnAmbulance(); }
+
+        function stopSystem() {
+            if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({event: "stop"}));
+            clearInterval(window.spawnMainInterval); clearInterval(window.spawnCrossInterval);
+            window.spawnMainInterval = null; window.spawnCrossInterval = null;
+            
+            document.getElementById('status').innerText = "OFFLINE"; document.getElementById('status').style.color = "#94a3b8";
+            document.getElementById('wave-text').innerText = "STANDBY"; document.getElementById('wave-text').style.color = "#facc15";
+            document.getElementById('eff-text').innerText = "0%"; document.getElementById('static-eff-text').innerText = "0%";
+            document.getElementById('graph-box').style.display = "none";
+            document.querySelectorAll('#btn-amb, #btn-acc, #stop-btn').forEach(b => b.style.display = "none");
+            document.getElementById('start-btn').style.display = "block";
+            
+            currentDensity = 1.0; document.getElementById('density-slider').value = 1.0; document.getElementById('density-val').innerText = "1.0x";
+            document.getElementById('scenario-selector').value = "live";
+
+            impactChart.data.datasets[0].data = Array(20).fill(0); impactChart.data.datasets[1].data = Array(20).fill(0); impactChart.update();
+            if(ws) ws.close();
+            
+            cars.forEach(c => scene.remove(c)); cars = [];
+            if(wreckage) { scene.remove(wreckage); isAccident = false; }
+            for(let i=1; i<=3; i++) document.getElementById('l'+i).style.backgroundColor = "#ef4444";
+        }
+
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     </script>
 </body>
 </html>
