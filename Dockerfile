@@ -1,7 +1,7 @@
 # 1. Start with a clean Python Linux computer
 FROM python:3.10-slim
 
-# 2. Install SUMO, a fake monitor (Xvfb), and web-streaming tools (noVNC)
+# 2. Install SUMO, fake monitor, web tools, AND 3D Graphics Libraries
 RUN apt-get update && apt-get install -y \
     sumo \
     sumo-tools \
@@ -10,6 +10,11 @@ RUN apt-get update && apt-get install -y \
     fluxbox \
     novnc \
     websockify \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 3. Create a folder for your app
