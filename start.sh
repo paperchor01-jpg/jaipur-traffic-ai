@@ -15,4 +15,4 @@ x11vnc -display :99 -forever -nopw -bg -xkb
 python simulation.py &
 
 # 5. Start the web server to stream the video to your browser
-websockify --web=/usr/share/novnc/ 8080 localhost:5900
+websockify --web=/usr/share/novnc/ ${PORT} localhost:5900
