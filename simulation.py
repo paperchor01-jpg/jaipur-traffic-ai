@@ -37,7 +37,7 @@ if not os.path.exists(sumo_exe_path):
 elif not os.path.exists(config_path):
     print(f"ERROR: Config file not found at {config_path}")
 else:
-    sumoCmd = [sumo_exe_path, "-c", config_path]
+    sumoCmd = ["sumo-gui", "-c", config_path]
 
     print("--- Starting AI-Powered SUMO Simulation ---")
     try:
